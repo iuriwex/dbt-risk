@@ -1,0 +1,65 @@
+  - name: dim_customer
+    columns:
+      - name: CUSTOMERID
+        tests:
+          - not_null
+    columns:
+      - name: customer_pk
+        tests:
+          - not_null
+          # - unique ??
+    columns:
+      - name: customer_name
+        tests:
+          - not_null
+    columns:
+      - name: customer_status
+        tests:
+          - not_null
+    columns:
+      - name: customer_gov_indicator
+        tests:
+          - not_null
+
+
+
+  - name: fct_credit_security
+    columns:
+      - name: CREDITLINEID
+        tests:
+          - not_null
+    columns:
+      - name: SECURITYTYPESEQUENCENUMBER
+        tests:
+          - not_null
+    columns:
+      - name: CUSTOMERID
+        tests:
+          - not_null
+    columns:
+      - name: SECURITYTYPECODE
+        tests:
+          - not_null
+           columns:
+      - name: SECURITYTYPENAME
+        tests:
+          - not_null
+ 	  columns:
+		  - name: SECURITYAMOUNT
+        tests:
+          - not_null
+    columns:
+	    - name: SECURITYEXPIREDATE
+        tests:
+          - not_null
+    columns:
+  	  - name: SECURITYREVIEWDATE
+        tests:
+          - not_null
+	
+	
+	
+	,
+	,
+
+  
