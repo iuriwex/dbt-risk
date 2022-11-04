@@ -6,7 +6,7 @@ models:
       - name: CUSTOMERID,
         tests:
           - not_null
-  - name: stg_eltool__credit_security
+  - name: stg_eltool__efs_credit_security
     columns:
       - name: CREDITLINEID,
         tests:
