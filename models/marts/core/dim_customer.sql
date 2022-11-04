@@ -1,6 +1,6 @@
-with efs_customer as (
+with dim_customer as (
     select *
-    from {{ ref('stg_eltool__efs_customer') }}
+    from {{ ref('stg_eltool__efS_customer') }}
 ),
 state as (
     select *   
