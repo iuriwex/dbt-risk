@@ -1,0 +1,11 @@
+with FCT_ACCOUNTS as (
+    select SELECT TOP 100 ACCOUNT_KEY, ACCOUNT_NAME,
+        CASE
+            WHEN ACCOUNT_COUNTRY_NAME = 'United States' THEN 'USD' 
+            ELSE 'NotUSD'
+        END AS CURRENCY, 
+        ROW_EFF_BEGIN_DTTM AS EFFECTIVE_DATE  
+    from {{'PREP.LEGACY_DATA_LAKE_EDW_STAGE.D_ACCOUNT_STAGE'}}
+)
+
+select * from FCT_ACCOUNTS
