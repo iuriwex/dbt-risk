@@ -71,3 +71,17 @@ left outer join salesforce_rss.sf_collections col
     on c.id        = col.case__c 
    AND c.accountid = col.account__c
  
+
+
+
+ --
+-- WHERE SHOULD I PUT THIS QUERY UPDATE? 
+update pro_sandbox.ca_collection_cases
+set task_level = 1 
+from 
+pro_sandbox.ca_collection_cases1 cccd
+    inner join (select case_casenumber, case_id, min(col_id) as mincolid
+    from pro_sandbox.ca_collection_cases1
+    group by case_casenumber,case_id)  coltask
+        on cccd.col_id = coltask.mincolid
+      AND cccd.case_id = coltask.case_id;
