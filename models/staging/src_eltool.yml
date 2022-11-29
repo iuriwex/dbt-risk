@@ -1,0 +1,43 @@
+version: 2
+sources:
+  - name: warehouse
+    description: Data from application database, brought in by an EL process
+    tables:
+      - name: ca_collection_queu_hist
+      # TODO: listing all columns
+      - name: ca_collection_tasks
+        columns:
+          - name: id
+            tests:
+              - not_null
+      - name: ca_collection_analytics
+      - name: ca_driver
+        columns:
+          - name: id
+            tests:
+              - not_null
+      - name: ca_efs_customer_current
+      - name: ca_get_amt_due
+      - name: ca_nice_acd
+      - name: ca_otr_platform
+      - name: ca_pastdue_naf
+      - name: ca_pastdue_otr
+      - name: ca_payments
+      - name: ca_promise_payments
+      - name: ca_ptp_all
+      - name: ca_ptp_payments_all
+      - name: ca_ptp_unique
+      - name: ca_salesforce_driver
+      - name: ca_salesforce_stage
+      - name: ca_salesforce_stagesort
+      - name: ca_salesforce
+      - name: ca_sf_payments
+      - name: ca_sf_task_penetration_calls_stage
+      - name: ca_sf_task_penetration_calls
+      - name: ca_TaskLevelActionFlagC
+      - name: ca_VARHistory
+      - name: ca_VarInfoCase
+  
+
+  
+

@@ -1,0 +1,40 @@
+version: 2
+models:
+  - name: stg_eltool__ca_collection_queu_hist
+  # TODO: listing all columns
+  - name: stg_eltool__ca_collection_tasks
+    columns:
+      - name: taskid
+        tests:
+          - not_null
+  - name: stg_eltool__ca_collection_analytics
+  - name: stg_eltool__ca_driver
+    columns:
+      - name: id
+        tests:
+          - not_null
+  - name: stg_eltool__ca_efs_customer_current
+  - name: stg_eltool__ca_get_amt_due
+  - name: stg_eltool__ca_nice_acd
+  - name: stg_eltool__ca_otr_platform
+  - name: stg_eltool__ca_pastdue_naf
+  - name: stg_eltool__ca_pastdue_otr
+  - name: stg_eltool__ca_payments
+  - name: stg_eltool__ca_promise_payments
+  - name: stg_eltool__ca_ptp_all
+  - name: stg_eltool__ca_ptp_payments_all
+  - name: stg_eltool__ca_ptp_unique
+  - name: stg_eltool__ca_salesforce_driver
+  - name: stg_eltool__ca_salesforce_stage
+  - name: stg_eltool__ca_salesforce_stagesort
+  - name: stg_eltool__ca_salesforce
+  - name: stg_eltool__ca_sf_payments
+  - name: stg_eltool__ca_sf_task_penetration_calls_stage
+  - name: stg_eltool__ca_sf_task_penetration_calls
+  - name: stg_eltool__ca_TaskLevelActionFlagC
+  - name: stg_eltool__ca_VARHistory
+  - name: stg_eltool__ca_VarInfoCase
+  
+
+  
+
