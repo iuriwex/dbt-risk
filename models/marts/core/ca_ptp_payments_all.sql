@@ -1,6 +1,6 @@
 with pro_sandbox.ca_ptp_payments_all1 as (
     SELECT * 
-    FROM {{('elt_tool_ca_ptp_payments_all')}}
+    FROM {{('stg_eltool_ca_ptp_payments_all')}}
 )
 select a.match_key
       ,a.ptpid

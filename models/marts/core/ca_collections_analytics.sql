@@ -2,7 +2,7 @@
 --as Tableau cannot handle joins with data this large 
 with pro_sandbox.ca_collections_analytics as (
     SELECT *
-    FROM {{('elt_tool_ca_collections_analitycs')}}
+    FROM {{('stg_eltool_ca_collections_analitycs')}}
 )
 select distinct 
        a.*
@@ -124,7 +124,7 @@ where a.lob in ('NAF','OTR');
 
 
 --TODO 
-update pro_sandbox.ca_collections_analytics1
+update pro_sandbox.ca_collections_analytics
 set dialer_contact_method = ds.dialer_contact_method 
 from 
 pro_sandbox.ca_collections_analytics1 ca
@@ -150,6 +150,6 @@ pro_sandbox.ca_collections_analytics1 ca
 
         
 --Updates the final dataset to clear out any promise to pay that was recorded by the agent NICE Integration.
-update pro_sandbox.ca_collections_analytics1
+update pro_sandbox.ca_collections_analytics
     set task_owner_agent_name = coalesce(case when task_owner_agent_name = 'NICE Integration' AND promise_kept = 1
                                               then NULL else task_owner_agent_name end,ptp_agent);

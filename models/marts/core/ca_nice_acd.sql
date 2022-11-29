@@ -1,6 +1,6 @@
 --Creates a nice acd dataset to use for final dataset
 with pro_sandbox.ca_nice_acd as (
-    SELECT * FROM {{('elt_tool__ca_nice_acd')}}
+    SELECT * FROM {{('stg_eltool__ca_nice_acd')}}
 )
 select distinct 
           cast(a.contact_id as varchar) as nice_contact_id 

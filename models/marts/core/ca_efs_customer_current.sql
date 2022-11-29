@@ -6,7 +6,7 @@
 
 with pro_sandbox.ca_efs_customer_current1 as (
     SELECT *
-    FROM {{('elt_tool__ca_efs_cutomer_current')}}
+    FROM {{('stg_eltool__ca_efs_cutomer_current')}}
 )
 select cast(customer_id as varchar) as cust_id,
 --  customer_ID isn't unique in EFS_customer--platform is also required--but I see

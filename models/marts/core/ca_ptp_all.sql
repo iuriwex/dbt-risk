@@ -1,5 +1,7 @@
-drop table if exists pro_sandbox.ca_ptp_all1;
-create table pro_sandbox.ca_ptp_all1 as 
+with pro_sandbox.ca_ptp_all as (
+	SELECT *
+	FROM {{('stg_eltool__ca_ptp_all')}}
+)
 select 
 sptp.id as ptpid,
 sa.id as acctid,

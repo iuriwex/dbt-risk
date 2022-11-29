@@ -1,7 +1,7 @@
 --Creates a dataset that is used to identify the population that needs to be
 --pulled for aging purposes. 
 with pro_sandbox.ca_salesforce_driver as (
-    SELECT * FROM {{('elt_tool__ca_salesforce_driver')}}
+    SELECT * FROM {{('stg_eltool__ca_salesforce_driver')}}
 )
 select a.case_casenumber
       ,a.match_key

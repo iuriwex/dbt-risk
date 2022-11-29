@@ -1,6 +1,6 @@
 --Creates a dataset to assign OTR accounts to Fleet One or EFSLLC
 with pro_sandbox.ca_otr_platform as (
-    SELECT * FROM {{'elt_tool__ca_otr_platform'}}
+    SELECT * FROM {{'stg_eltool__ca_otr_platform'}}
 )
 select DISTINCT 
 ar_number,

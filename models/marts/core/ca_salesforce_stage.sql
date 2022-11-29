@@ -5,7 +5,7 @@
 
 --Sorts data and provides an ascending uniquerowid for staging purposes
 with pro_sandbox.ca_salesforce_stage1 as (
-    SELECT * FROM {{('etl_tool__ca_salesforce_stage')}}
+    SELECT * FROM {{('stg_eltool__ca_salesforce_stage')}}
 )
 select 
 row_number() OVER (order by case_casenumber, calldisp_ptpflg, task_create_dttm) as uniquerowid,

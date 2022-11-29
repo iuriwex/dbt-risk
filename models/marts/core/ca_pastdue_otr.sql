@@ -1,6 +1,6 @@
 -- ca_pastdue_otr
 with pro_sandbox.ca_pastdue_otr as (
-    SELECT * FROM {{('elt_tool__ca_pastdue_otr')}}
+    SELECT * FROM {{('stg_eltool__ca_pastdue_otr')}}
 ) 
 select pd.ar_number,
     pd.ar_date,

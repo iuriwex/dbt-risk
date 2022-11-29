@@ -1,6 +1,6 @@
 --creates dataset of collection calls that were made
 with pro_sandbox.ca_sf_task_penetration_calls_stage as (
-    SELECT * FROM {{('elt_tool__ca_sf_penetration_calls_stage')}}
+    SELECT * FROM {{('stg_elool__ca_sf_penetration_calls_stage')}}
 )
  select
  s.case_id

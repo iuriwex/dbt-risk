@@ -1,6 +1,6 @@
 with pro_sandbox.ca_TaskLevelActionFlagC as (
     SELECT * 
-    FROM {{('ca_taskLevelActionFlagC')}}
+    FROM {{('stg_eltool__ca_taskLevelActionFlagC')}}
 )
   select
   cht.taskid,cht.task_create_dttm,cht.hcolid,cht.max_utc_hcol_createdttm,cht.max_et_hcol_createdttm,

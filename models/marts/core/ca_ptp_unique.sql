@@ -1,6 +1,6 @@
 --Creates a dataset of unique promise to pay entries that need to be matched
 with pro_sandbox.ca_ptp_unique as (
-    SELECT * FROM {{('elt_tool__ca_ptp_unique')}}
+    SELECT * FROM {{('stg_eltool__ca_ptp_unique')}}
 )
 select DISTINCT
        ptpid

@@ -1,6 +1,6 @@
 --Creates dataset that introduces promise to pay elements
 with pro_sandbox.ca_salesforce as (
-    SELECT * FROM {{('elt_tool__ca_salesforce')}}
+    SELECT * FROM {{('stg_eltool__ca_salesforce')}}
 )
 select 
  cssd.*

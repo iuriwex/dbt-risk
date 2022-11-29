@@ -1,5 +1,5 @@
 with pro_sandbox.ca_sf_payments as (
-    SELECT * FROM {{('elt_tool__ca_sf_payments')}}
+    SELECT * FROM {{('stg_eltool__ca_sf_payments')}}
 )
 select a.match_key
       ,a.case_casenumber

@@ -1,7 +1,7 @@
 --Creates dataset the unique promise to pay entries to payments
 --that will be used in final output 
 with pro_sandbox.ca_promise_payments as (
-    SELECT * FROM {{('elt_tool__ca_promise_payments')}}
+    SELECT * FROM {{('stg_eltool__ca_promise_payments')}}
 )
 select a.match_key
       ,a.ptpid

@@ -2,7 +2,7 @@
 --to be used for the next part of the process.
 with pro_sandbox.ca_VARHistory as (
     SELECT *
-    FROM {{('elt_tool_ca_VARHistory')}}
+    FROM {{('stg_eltool_ca_VARHistory')}}
 )
 select
 a.case_id,a.match_key,'NAF' as lob_table_source,max(cast(mnaf.partition_0 as date)) as MaxScoringDt,count(DISTINCT mnaf.business_date) as NbrOfScoringDays

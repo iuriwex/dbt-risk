@@ -11,7 +11,7 @@
 
 -- ca_pastdue_naf
 with pro_sandbox.ca_pastdue_naf as (
-    SELECT * FROM {{('elt_tool__ca_pastdue_naf')}}
+    SELECT * FROM {{('stg_eltool__ca_pastdue_naf')}}
 ) 
 select pd.cust_id,
     pd.business_date,

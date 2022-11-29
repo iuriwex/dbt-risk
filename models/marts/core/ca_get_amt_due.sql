@@ -1,6 +1,6 @@
 -- ca_get_amt_due
 with pro_sandbox.ca_get_amt_due as (
-    SELECT * FROM {{('elt_tool__ca_get_amt_due')}}
+    SELECT * FROM {{('stg_eltool__ca_get_amt_due')}}
 ) 
 select case_casenumber,
     case_create_dt,

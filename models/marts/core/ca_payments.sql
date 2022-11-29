@@ -1,6 +1,6 @@
 --Creates dataset of all the payments that have come in for OTR and NAF
 with pro_sandbox.ca_payments as (
-    SELECT * FROM {{('elt_tool__ca_payments')}}
+    SELECT * FROM {{('stg_eltool__ca_payments')}}
 )
 select cust.cust_id          as match_key
       ,pay.post_dt           as payment_dt
