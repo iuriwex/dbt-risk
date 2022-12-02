@@ -2,6 +2,12 @@ version: 2
 models:
   - name: stg_eltool__ca_collection_queu_hist
   # TODO: listing all columns
+          
+  - name: stg_eltool__ca_collection_cases
+    columns:
+      - name: case_id
+        tests:
+          - not_null
   - name: stg_eltool__ca_collection_tasks
     columns:
       - name: taskid
@@ -13,7 +19,7 @@ models:
       - name: id
         tests:
           - not_null
-  - name: stg_eltool__ca_efs_customer_current
+  - name: stg_eltool__ca_efs_customer_current  
   - name: stg_eltool__ca_get_amt_due
   - name: stg_eltool__ca_nice_acd
   - name: stg_eltool__ca_otr_platform

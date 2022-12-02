@@ -3,8 +3,23 @@ sources:
   - name: warehouse
     description: Data from application database, brought in by an EL process
     tables:
-      - name: ca_collection_queu_hist
       # TODO: listing all columns
+      - name: ca_ColHistoryTaskDt
+        columns:
+          - name: taskid
+            tests:
+              - not_null
+          - name: task_create_dttm
+          - name: hcolid
+          - name: max_utc_hcol_createdttm
+          - name: max_et_hcol_createdttm
+          - name: nbr_of_records
+      - name: ca_collection_queu_hist
+      - name: ca_collection_cases
+        columns:
+          - name: case_id
+            tests:
+              - not_null
       - name: ca_collection_tasks
         columns:
           - name: id
