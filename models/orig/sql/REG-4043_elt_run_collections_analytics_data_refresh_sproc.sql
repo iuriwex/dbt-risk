@@ -2,50 +2,7 @@ CREATE OR REPLACE PROCEDURE elt.run_collections_analytics_data_refresh()
 	LANGUAGE plpgsql
 AS $$
 	
-    
-/**
-*
-*   2021-01-13 v1.0 - Initial Release
-*   2021-01-19 v1.0.1 -- Minor Update
-*   2021-04-23 v1.1 - Tuning changes, as the load was failing
-*
-*   To run: 
-*       call elt.run_collections_analytics_data_refresh()
-*
-*   Details:
---Consolidates the following scripts into one for the purposes of scheduling
---Each master script is stored in the DP-CollectionsAnalytics\Individual_Scripts repo
---Each script that is represented in this consolidated script will have a --Start and a --End 
---Comments and notes are kept in this script to provide context but can be removed if needed
---    1.DP-CollectionsAnalytics\Individual_Scripts\Create_Collection_Analytics_Datasets_PROD.sql
---    2.DP-CollectionsAnalytics\Individual_Scripts\Segment Analysis Query_PROD.sql
---    3.DP-CollectionsAnalytics\Individual_Scripts\Roll Rate_PROD.sql
---    4.DP-CollectionsAnalytics\Individual_Scripts\Queue Migration_PROD.sql
---    5.DP-CollectionsAnalytics\Individual_Scripts\Cure Rates_PROD.sql
---    6.DP-CollectionsAnalytics\Individual_Scripts\Collections- New Data Model_PROD.sql
---    7.DP-COllectionsAnalytics\Individual_Scripts\ACR_ Daily count_PROD.sql
---    8.DP-COllectionsAnalytics\Individual_Scripts\ACR_ dataset_PROD.sql
 
-* Change 
-*   v1.0.1--2021-01-19: 
-*       v_section 50: Updated create table pro_sandbox.ca_collection_analytics_currate
- *      to pull off of ca_collections_analytics_current_temp instead of a
- *      development table. NAM  20210119
- *  v1.0.2--2021-02-23:
- *     v_section 30: Update join issues. See section for more details. NAM 20210223
- *  v1.0.3--2021-08-13: Added ca_ptp_all and ca_ptp_payments_all to v_section 10. Minor
- *                      Bug Updates. Work tracked under Jira Ticket REG-1443
-**/
-DECLARE
-    v_section integer := 0;
-    v_tm timestamp;
-    v_jobname varchar(50) := 'run_collections_analytics_data_refresh';
-BEGIN
-
--- Start 1.DP-CollectionsAnalytics\Individual_Scripts\Create_Collection_Analytics_Datasets_Prod.sql
-
-v_section := 10; 
-call elt.logging(v_jobname, v_section);
 
 /***********************************************************************************/
 /* Script create date: 2021.01.07 Report Author: NMorrill; PLiberatore             */
@@ -82,6 +39,14 @@ call elt.logging(v_jobname, v_section);
 /*       able to drop most of these tables after the final output has been created */
 /*       after stablization finishes.                                              */ 
 /***********************************************************************************/
+
+/******* ENABLE LOGS
+v_section integer := 0;
+v_tm timestamp;
+v_jobname varchar(50) := 'run_collections_analytics_data_refresh';
+v_section := 10; 
+call elt.logging(v_jobname, v_section);
+***/
 /***
  * Change Log:
  ***/
@@ -89,8 +54,8 @@ call elt.logging(v_jobname, v_section);
 -- There is an intraday_row_number that assigns the value of 1 to the last queue that 
 -- an account was assigned to at the end of the day. The max value of this column shows
 -- the first unique value tha the account was assigned for for the day.
-drop table if exists pro_sandbox.ca_collection_queue_hist; 
-create table pro_sandbox.ca_collection_queue_hist as 
+drop table if exists pro_sandbox.ca_collection_queue_hist1; 
+create table pro_sandbox.ca_collection_queue_hist1 as
 select
 b.casenumber,
 b.owner_name__c as current_caseowner_name,
@@ -158,6 +123,10 @@ and (a.oldvalue = 'Credit Monitoring'
 or substring(a.oldvalue, 1, 10)= 'Collection'
 or a.newvalue = 'Credit Monitoring'
 or substring(a.newvalue, 1, 10)= 'Collection');
+ 
+
+
+
 
 /*  Nick Bogan, 2021-04-23: When we build ca_driver, we don't bother doing a full
  * outer join of case and sf_case_history, because ca_driver is inner joined to
@@ -167,8 +136,8 @@ or substring(a.newvalue, 1, 10)= 'Collection');
 --Creates a dataset of all cases that were ever assigned to collections 
 --to be used as a base population for the entirety of the collections
 --data model/set creation
-drop table if exists pro_sandbox.ca_driver;
-create table pro_sandbox.ca_driver as 
+drop table if exists pro_sandbox.ca_driver1;
+create table pro_sandbox.ca_driver1 as
 select a.id,
     max(case 
         when b.newvalue like 'Collections%' then b.newvalue 
@@ -181,9 +150,10 @@ from salesforce_dl_rss.case            a
 where (a.owner_name__c like 'Collections%' or b.oldvalue like 'Collections%' or b.newvalue like 'Collections%')
 group by a.id;
 
+
 --Creates a dataset of case & collection object attributes
-drop table if exists pro_sandbox.ca_collection_cases;
-create table pro_sandbox.ca_collection_cases as 
+drop table if exists pro_sandbox.ca_collection_cases1;
+create table pro_sandbox.ca_collection_cases1 AS
 select DISTINCT
     c.casenumber case_casenumber
     ,case when length(a.wex_account__c)>2 then a.wex_account__c else col.ar_number__c end as match_key   
@@ -244,28 +214,34 @@ select DISTINCT
     ,a.pfs_rep__c as pfs_rep
     ,a.direct_debit__c as direct_debit
     ,0 as task_level
-from pro_sandbox.ca_driver as driver
-inner join salesforce_dl_rss.case c
-    on c.id = driver.id
-inner join salesforce_dl_rss.account a
-    on c.accountid  = a.id 
+FROM pro_sandbox.ca_driver AS driver
+INNER JOIN salesforce_dl_rss.case c
+ON c.id = driver.id
+INNER JOIN salesforce_dl_rss.account a
+ON c.accountid  = a.id 
 left outer join salesforce_rss.sf_collections col
     on c.id        = col.case__c 
-   AND c.accountid = col.account__c; 
-      
+   AND c.accountid = col.account__c;
+  
+  
+  
+  
 --Flags the record that is most appropriate to attach a task too
 --as without attaching a task to a unique record will cause massive
 --duplication of data.    
-update pro_sandbox.ca_collection_cases
+update pro_sandbox.ca_collection_cases1
 set task_level = 1 
 from 
-pro_sandbox.ca_collection_cases cccd
+pro_sandbox.ca_collection_cases1 cccd
     inner join (select case_casenumber, case_id, min(col_id) as mincolid
-    from pro_sandbox.ca_collection_cases
+    from pro_sandbox.ca_collection_cases1
     group by case_casenumber,case_id)  coltask
         on cccd.col_id = coltask.mincolid
       AND cccd.case_id = coltask.case_id;
 
+     
+     
+     
 /*  Nick Bogan, 2021-04-28: I reverted to loading ca_collection_tasks driving from
  * a subquery against pro_sandbox.ca_collection_cases that returns the case and
  * collection IDs, because we need all current or former Collections-owned cases
@@ -273,8 +249,8 @@ pro_sandbox.ca_collection_cases cccd
  */
 
 --Creates dataset of unique collection tasks that need to be appended for final dataset
-drop table if exists pro_sandbox.ca_collection_tasks;
-create table pro_sandbox.ca_collection_tasks as
+drop table if exists pro_sandbox.ca_collection_tasks1;
+create table pro_sandbox.ca_collection_tasks1 as
 select
  t.id                             taskid
 ,t.whatid                         taskwhatid
@@ -298,17 +274,20 @@ select
 ,case when t.calldisposition = 'Right Party Contact w/ Promise to Pay' then 1 else 0 end as task_calldisposition_rpc_ptp
 ,u.name                           task_owner_agent_name
 from -- case_col
-    (select DISTINCT case_id as id from pro_sandbox.ca_collection_cases
+    (select DISTINCT case_id as id from pro_sandbox.ca_collection_cases1
     union all
     --  My understanding is that SFDC IDs are globally distinct, and there was no
     -- overlap between these IDs in entapps_stage on 2021-04-21.
-    select DISTINCT col_id as id from pro_sandbox.ca_collection_cases) case_col
+    select DISTINCT col_id as id from pro_sandbox.ca_collection_cases1) case_col
 inner join salesforce_rss.sf_task t
     on t.whatid = case_col.id
 left outer join salesforce_rss.sf_contact      c 
     on c.id = t.whoid
 left outer join salesforce_rss.sf_user         u 
     on t.ownerid = u.id;
+
+
+
 
 /*  Nick Bogan, 2021-04-23: The load of ca_salesforce_stagesort joined ca_collection_cases
  * and ca_collection_tasks using OR, which was very slow. We replace that with the
@@ -318,8 +297,8 @@ left outer join salesforce_rss.sf_user         u
  */
 
 --Creates a dataset that joins cases and tasks together
-drop table if exists pro_sandbox.ca_salesforce_stagesort;
-create table pro_sandbox.ca_salesforce_stagesort as 
+drop table if exists pro_sandbox.ca_salesforce_stagesort1;
+create table pro_sandbox.ca_salesforce_stagesort1 as 
 select case_task.*,
     case when task_calldisposition in
             ('Promise to Pay',
@@ -334,68 +313,66 @@ from -- case_task
     (select 'Case Task' as Task_Assigned_To,
         cccd.*,
         cctd.*
-    from pro_sandbox.ca_collection_cases cccd
-    inner join pro_sandbox.ca_collection_tasks cctd
+    from pro_sandbox.ca_collection_cases1 cccd
+    inner join pro_sandbox.ca_collection_tasks1 cctd
         on cccd.case_id = cctd.taskwhatid
        AND cccd.task_level = 1
     union all
     select 'Collection Task' as Task_Assigned_To,
         cccd.*,
         cctd.*
-    from pro_sandbox.ca_collection_cases cccd
-    inner join pro_sandbox.ca_collection_tasks cctd
+    from pro_sandbox.ca_collection_cases1 cccd
+    inner join pro_sandbox.ca_collection_tasks1 cctd
         on cccd.col_id = cctd.taskwhatid
        AND cccd.task_level = 1
     union all
     select 'Other' as Task_Assigned_To,
         cccd.*,
         cctd.*
-    from pro_sandbox.ca_collection_cases cccd
-    left outer join pro_sandbox.ca_collection_tasks cctd
+    from pro_sandbox.ca_collection_cases1 cccd
+    left outer join pro_sandbox.ca_collection_tasks1 cctd
         on cccd.case_id = cctd.taskwhatid
        AND cccd.task_level = 1
-    left outer join pro_sandbox.ca_collection_tasks cctd_col
+    left outer join pro_sandbox.ca_collection_tasks1 cctd_col
         on cccd.col_id = cctd_col.taskwhatid
        AND cccd.task_level = 1
     where cctd.taskwhatid is null
         and cctd_col.taskwhatid is null
     ) case_task;
-
-/*  Nick Bogan, 2021-04-23: When loading ca_salesforce_stage, we use the fields
- * from the ORDER BY clause of the prior query to determine uniquerowid, then order
- * the results by uniquerowid. 
- */
-
---Sorts data and provides an ascending uniquerowid for staging purposes
-drop table if exists pro_sandbox.ca_salesforce_stage;
-create table pro_sandbox.ca_salesforce_stage as
+   
+   
+drop table if exists pro_sandbox.ca_salesforce_stage1;
+create table pro_sandbox.ca_salesforce_stage1 as
 select 
 row_number() OVER (order by case_casenumber, calldisp_ptpflg, task_create_dttm) as uniquerowid,
 *
 from 
-pro_sandbox.ca_salesforce_stagesort
+pro_sandbox.ca_salesforce_stagesort1
 order by uniquerowid;
 
+
 --Drops staging table 
-drop table if exists pro_sandbox.ca_salesforce_stagesort;
+drop table if exists pro_sandbox.ca_salesforce_stagesort1;
 
 --Flags the appropriate level to attach a promise to pay record
-update pro_sandbox.ca_salesforce_stage
+update pro_sandbox.ca_salesforce_stage1
 set ptp_level = 1
 from 
-pro_sandbox.ca_salesforce_stage cssd
+pro_sandbox.ca_salesforce_stage1 cssd
     inner join
     (select case_id, col_id,
         max(case when calldisp_ptpflg = 1 then UniqueRowID else NULL end) as MaxUniqueRowID1,
         max(uniquerowid) as maxUniqueRowID
-    from pro_sandbox.ca_salesforce_stage
+    from pro_sandbox.ca_salesforce_stage1
     group by case_id, col_id) b 
         on cssd.UniqueRowID = coalesce(b.MaxUniqueRowID1,b.MaxUniqueRowID);
 
+
+       
 --Creates dataset that introduces promise to pay elements
-drop table if exists pro_sandbox.ca_salesforce;
-create table pro_sandbox.ca_salesforce as
-select 
+drop table if exists pro_sandbox.ca_salesforce1;
+create table pro_sandbox.ca_salesforce1 as
+SELECT 
  cssd.*
 ,p.ptpid
 ,p.ptp_create_dt
@@ -409,13 +386,13 @@ select
 ,pp.payment_date__c               pymtpln_payment_date
 ,pp.payment_remitted__c           pymtpln_payment_remitted
 ,supp.name                        pymtpln_agent
-from
-pro_sandbox.ca_salesforce_stage cssd
-    left outer join  
+FROM pro_sandbox.ca_salesforce_stage cssd
+LEFT OUTER JOIN   
              (select collections__c,first_payment_date__c,payment_plan_total__c,payment_amount__c,payment_frequency__c,payment_type__c
              ,id as ptpid,cast(createddate as date) as ptp_create_dt,createdbyid,
              dense_rank() over(partition by collections__c order by row_created_ts desc) as first_payment_date_rankdesc          
-             from salesforce_rss.sf_promise_to_pay)  p
+             from salesforce_rss.sf_promise_to_pay
+             )  p
         on cssd.col_id = p.collections__c
        AND p.first_payment_date_rankdesc = 1 
        AND cssd.ptp_level = 1 
@@ -426,19 +403,23 @@ pro_sandbox.ca_salesforce_stage cssd
     left outer join salesforce_rss.sf_user supp
         on pp.createdbyid  = supp.id;
 
+
 --Creates a dataset that is used to identify the population that needs to be
 --pulled for aging purposes. 
-drop table if exists pro_sandbox.ca_salesforce_driver;
-create table pro_sandbox.ca_salesforce_driver as 
+drop table if exists pro_sandbox.ca_salesforce_driver1;
+create table pro_sandbox.ca_salesforce_driver1 as
 select a.case_casenumber
       ,a.match_key
       ,a.case_create_dt
       ,a.task_create_dt      
       ,max(a.case_closed_dt) as case_closed_dt
       ,max(a.lob) as lob 
-  from pro_sandbox.ca_salesforce_stage a 
+  from pro_sandbox.ca_salesforce_stage1 a 
  group by a.case_casenumber, a.match_key, a.case_create_dt, a.task_create_dt;
- 
+
+
+
+
 /*  Nick Bogan, 2021-04-23: We create PRO_sandbox tables for the NAF and OTR past
  * due data, for better performance joining to ca_salesforce_driver. Also, we combine
  * the former ca_get_amtpastdue, ca_get_rev_amtpastdue and ca_get_rev_amtmindue
@@ -449,8 +430,8 @@ select a.case_casenumber
  * why we would want separate rows for each measure amount in these data.
  */
 
-drop table if exists pro_sandbox.ca_pastdue_naf;
-create table pro_sandbox.ca_pastdue_naf as
+drop table if exists pro_sandbox.ca_pastdue_naf1;
+create table pro_sandbox.ca_pastdue_naf1 as
 select pd.cust_id,
     pd.business_date,
     pd.past_due_amount
@@ -459,8 +440,8 @@ where pd.partition_0 =
     (select max(pd2.partition_0) as max_partition
     from collections_history_prod_rss.nafleet_past_due as pd2);
 
-drop table if exists pro_sandbox.ca_pastdue_otr;
-create table pro_sandbox.ca_pastdue_otr as
+drop table if exists pro_sandbox.ca_pastdue_otr1;
+create table pro_sandbox.ca_pastdue_otr1 as
 select pd.ar_number,
     pd.ar_date,
     pd.past_due_total
@@ -468,9 +449,16 @@ from collections_history_prod_rss.otr_past_due pd
 where pd.partition_0 =
     (select max(pd2.partition_0) as max_partition
     from collections_history_prod_rss.otr_past_due as pd2);
-
-drop table if exists pro_sandbox.ca_get_amt_due;
-create table pro_sandbox.ca_get_amt_due as
+   
+   
+   
+   
+   
+   
+   
+   
+drop table if exists pro_sandbox.ca_get_amt_due1;
+create table pro_sandbox.ca_get_amt_due1 as
 select case_casenumber,
     case_create_dt,
     max(begin_amtpastdue_dt)        as begin_amtpastdue_dt,
@@ -496,8 +484,8 @@ from -- amt_due
     cast(null as date) as begin_rev_billing_dt,
     cast(null as date) as end_rev_billing_dt,
     0 as rev_minamtdue_amt
-from pro_sandbox.ca_salesforce_driver           a 
-     left outer join pro_sandbox.ca_pastdue_naf b
+from pro_sandbox.ca_salesforce_driver1           a 
+     left outer join pro_sandbox.ca_pastdue_naf1 b
   on a.match_key   = b.cust_id
  and b.business_date between a.case_create_dt and a.case_closed_dt
      left outer join pro_sandbox.ca_pastdue_otr c
@@ -519,7 +507,7 @@ select
     cast(null as date) as begin_rev_billing_dt,
     cast(null as date) as end_rev_billing_dt,
     0 as rev_minamtdue_amt
- from pro_sandbox.ca_salesforce_driver                  a
+ from pro_sandbox.ca_salesforce_driver1                  a
       left outer join
       naflt_psfin_rss.ps_wx_cust_daily   b
    on a.match_key = b.cust_id
@@ -542,7 +530,7 @@ select
     min(b.wxf_billing_date)  as begin_rev_billing_dt,
     max(b.wxf_billing_date)  as end_rev_billing_dt,   
     max(b.wx_minimum_due)    as rev_minamtdue_amt
- from pro_sandbox.ca_salesforce_driver                  a
+ from pro_sandbox.ca_salesforce_driver1                  a
       left outer join
       naflt_psfin_rss.ps_wx_rev_hdr_stg  b
    on a.match_key = b.wx_ext_cust_id
@@ -553,10 +541,12 @@ where b.wx_minimum_due > 0
 ) amt_due
 group by case_casenumber,
     case_create_dt;
-
+   
+   
+   
 --Creates dataset of all the payments that have come in for OTR and NAF
-drop table if exists pro_sandbox.ca_payments;
-create table pro_sandbox.ca_payments as 
+drop table if exists pro_sandbox.ca_payments1;
+create table pro_sandbox.ca_payments1 as
 select cust.cust_id          as match_key
       ,pay.post_dt           as payment_dt
       ,sum(pay.payment_amt)  as payment_amt
@@ -583,8 +573,12 @@ from efs_owner_crd_rss.efs_payments a
  and a.payment_date >= '2020-01-01'    
 group by c.ar_number, a.payment_date;
 
-drop table if exists pro_sandbox.ca_sf_payments;
-create table pro_sandbox.ca_sf_payments as 
+
+
+
+
+drop table if exists pro_sandbox.ca_sf_payments1;
+create table pro_sandbox.ca_sf_payments1 as
 select a.match_key
       ,a.case_casenumber
       ,a.case_create_dt
@@ -598,9 +592,11 @@ select a.match_key
   and b.payment_dt between a.case_create_dt and a.case_closed_dt
  group by a.match_key, a.case_casenumber, a.case_create_dt; 
 
+
+
 --Creates a dataset of unique promise to pay entries that need to be matched
-drop table if exists pro_sandbox.ca_ptp_unique;
-create table pro_sandbox.ca_ptp_unique as 
+drop table if exists pro_sandbox.ca_ptp_unique1;
+create table pro_sandbox.ca_ptp_unique1 as 
 select DISTINCT
        ptpid
       ,ptp_create_dt
@@ -611,36 +607,47 @@ select DISTINCT
       ,ptp_payment_type
  from pro_sandbox.ca_salesforce;
 
+
+
 --Creates dataset the unique promise to pay entries to payments
 --that will be used in final output 
-drop table if exists pro_sandbox.ca_promise_payments;
-create table pro_sandbox.ca_promise_payments as 
+drop table if exists pro_sandbox.ca_promise_payments1;
+create table pro_sandbox.ca_promise_payments1 as
 select a.match_key
       ,a.ptpid
       ,a.ptp_create_dt
       ,cast(a.ptp_first_payment_dt as date) as ptp_first_payment_date
       ,sum(b.payment_amt)                   as ttl_paid_to_promise
       ,count(b.match_key)                   as nbr_of_pymts_to_promise 
-      from pro_sandbox.ca_ptp_unique a
-            inner join 
-            pro_sandbox.ca_payments   b
-          on a.match_key = b.match_key
-         and b.payment_dt BETWEEN a.ptp_create_dt AND cast(a.ptp_first_payment_dt as date)
+from pro_sandbox.ca_ptp_unique a
+inner join 
+pro_sandbox.ca_payments   b
+on a.match_key = b.match_key
+and b.payment_dt BETWEEN a.ptp_create_dt AND cast(a.ptp_first_payment_dt as date)
 group by a.match_key, a.ptpid, a.ptp_create_dt, cast(a.ptp_first_payment_dt as date);
 
+
+
+
+
+
 --Creates a dataset to assign OTR accounts to Fleet One or EFSLLC
-drop table if exists pro_sandbox.ca_otr_platform;
-create table pro_sandbox.ca_otr_platform as 
+drop table if exists pro_sandbox.ca_otr_platform1;
+create table pro_sandbox.ca_otr_platform1 as 
 select DISTINCT 
 ar_number,
 platform,
 issuer_name
-from
-efs_owner_crd_rss.efs_ar_master eam ;
+from efs_owner_crd_rss.efs_ar_master eam ;
+
+
+
+
+
 
 --Creates a nice acd dataset to use for final dataset
-drop table if exists pro_sandbox.ca_nice_acd;
-create table pro_sandbox.ca_nice_acd as 
+drop table if exists pro_sandbox.ca_nice_acd1;
+create table pro_sandbox.ca_nice_acd1 as 
 select distinct 
           cast(a.contact_id as varchar) as nice_contact_id 
         ,NULLIF(a.acw__time,'')acw__time
@@ -671,12 +678,28 @@ select distinct
         ,NULLIF(a.unavailable__time,'')unavailable__time
         ,NULLIF(a.wait__time,'')wait__time
         ,NULLIF(a.working__time,'')working__time
-         from nice_acd_rss.wex__aht_reportdownload   a
-         where a.active__agent='True';
+from nice_acd_rss.wex__aht_reportdownload   a
+where a.active__agent='True';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 --creates dataset of collection calls that were made
-drop table if exists pro_sandbox.ca_sf_task_penetration_calls_stage;
-create table pro_sandbox.ca_sf_task_penetration_calls_stage as 
- select
+drop table if exists pro_sandbox.ca_sf_task_penetration_calls_stage1;
+create table pro_sandbox.ca_sf_task_penetration_calls_stage1 as 
+select
  s.case_id
 ,s.case_casenumber
 ,st.cxone_contact_id__c
@@ -684,6 +707,7 @@ create table pro_sandbox.ca_sf_task_penetration_calls_stage as
 ,nbr_of_agent_calls
 ,max(st.id) as taskid
 ,count(*) as Nbr_of_Calls
+,null:datetime as Create_Date  -- new field added, based on the DML alter table
 from
  (select  
    case_id
@@ -694,7 +718,7 @@ from
   ,sum(case when task_owner_agent_name NOT IN ('Credit Monitoring','CreditApplication Site Guest User','NICE Integration') then 1
           else 0 end) as nbr_of_agent_calls
   ,count(*) as nbr_of_case_records
-  from pro_sandbox.ca_salesforce
+  from pro_sandbox.ca_salesforce1
   group by case_id, case_casenumber, q_type,taskid) s
 left outer join
 salesforce_rss.sf_task st
@@ -748,24 +772,29 @@ and ((st.cxone_contact_id__c IS NOT NULL) AND  (st.cxone_contact_id__c <> '0'))
 and case when nbr_of_agent_calls >0 then 'Y' else 'N' end =
     case when u.name IN ('Credit Monitoring','CreditApplication Site Guest User','NICE Integration') then 'N'
          else 'Y' end;
---adds create date field to dataset above
-alter table pro_sandbox.ca_sf_task_penetration_calls_stage
-    add Create_Date datetime null;
+        
+        
+
+
+
+
+
+
+
 --Pulls max create date for the taskid. This had to be culled out from the main query because the max task id for the
 --day does mean that that task id will have the max create date due to the way salesforce reserves primary keys 
 --during user entry
-update pro_sandbox.ca_sf_task_penetration_calls_stage
+update pro_sandbox.ca_sf_task_penetration_calls_stage1
     set create_date = (select max(b.task_create_dttm) from pro_sandbox.ca_salesforce b where a.taskid = b.taskid)
-FROM 
-pro_sandbox.ca_sf_task_penetration_calls_stage a;
+FROM pro_sandbox.ca_sf_task_penetration_calls_stage1 a;
     
 --Creates a distinct list  of calls to tie back to final dataset
-drop table if exists pro_sandbox.ca_sf_task_penetration_calls;
-create table pro_sandbox.ca_sf_task_penetration_calls as 
+drop table if exists pro_sandbox.ca_sf_task_penetration_calls1;
+create table pro_sandbox.ca_sf_task_penetration_calls1 as 
 select distinct 
 case_id
 ,case_casenumber
-,Create_Date
+,create_Date
 ,cxone_contact_id__c
 ,call_attempts_needed
 ,taskid
@@ -773,41 +802,46 @@ case_id
 from 
 pro_sandbox.ca_sf_task_penetration_calls_stage;
 
+
 --Creates a dataset to pull the max collection history date
 --attached to a task so that the var score from mckinsey
 --can be correctly pulled into final dataset.
-drop table if exists pro_sandbox.ca_ColHistoryTaskDt;
-create table pro_sandbox.ca_ColHistoryTaskDt as
-  select
+drop table if exists pro_sandbox.ca_ColHistoryTaskDt1;
+create table pro_sandbox.ca_ColHistoryTaskDt1 as
+SELECT
   s.taskid,
   s.task_create_dttm,
   hcol.id as hcolid,
   max(hcol.row_created_ts) as max_utc_hcol_createdttm,
   convert_timezone('UTC','EST',left(regexp_replace(max(hcol.row_created_ts),'T',' '),19)::timestamp) max_et_hcol_createdttm,
   count(*) as nbr_of_records
-  from 
-  pro_sandbox.ca_salesforce s
-    left outer join salesforce_rss.history_sf_collections hcol
-        on s.col_id = hcol.id
-       AND s.task_create_dttm > convert_timezone('UTC','EST',left(regexp_replace(hcol.row_created_ts,'T',' '),19)::timestamp)
-    group by 
-    s.taskid, s.task_create_dttm, hcol.id;
+FROM pro_sandbox.ca_salesforce s
+LEFT OUTER JOIN salesforce_rss.history_sf_collections hcol
+ON s.col_id = hcol.id
+AND s.task_create_dttm > convert_timezone('UTC','EST',left(regexp_replace(hcol.row_created_ts,'T',' '),19)::timestamp)
+GROUP BY s.taskid, s.task_create_dttm, hcol.id;
 
-drop table if exists pro_sandbox.ca_TaskLevelActionFlagC;
-create table pro_sandbox.ca_TaskLevelActionFlagC as 
-  select
+
+
+
+
+
+drop table if exists pro_sandbox.ca_TaskLevelActionFlagC1;
+create table pro_sandbox.ca_TaskLevelActionFlagC1 as 
+select
   cht.taskid,cht.task_create_dttm,cht.hcolid,cht.max_utc_hcol_createdttm,cht.max_et_hcol_createdttm,
   cht.nbr_of_records,cf.action_flag__c as collections_action_flag
-  from
-  pro_sandbox.ca_ColHistoryTaskDt cht
-    inner join salesforce_rss.history_sf_collections cf
-        on cht.hcolid = cf.id
-       AND cht.max_utc_hcol_createdttm = cf.createddate;
+from pro_sandbox.ca_ColHistoryTaskDt1 cht
+inner join salesforce_rss.history_sf_collections cf
+on cht.hcolid = cf.id
+AND cht.max_utc_hcol_createdttm = cf.createddate;
+
+
 
 --Creates a staging table of the var information for a specific collections id
 --to be used for the next part of the process.
-drop table if exists pro_sandbox.ca_VARHistory;
-create table pro_sandbox.ca_VARHistory as 
+drop table if exists pro_sandbox.ca_VARHistory1;
+create table pro_sandbox.ca_VARHistory1 as 
 select
 a.case_id,a.match_key,'NAF' as lob_table_source,max(cast(mnaf.partition_0 as date)) as MaxScoringDt,count(DISTINCT mnaf.business_date) as NbrOfScoringDays
 from
@@ -830,10 +864,16 @@ cast(motr.partition_0 as date) BETWEEN cast(a.case_created_dttm as date) AND cas
 group by
 a.case_id,a.match_key;
 
+
+
+
+
+
+
 --Creates a dataset of the VAR Info by case for the output
 --of the process.
-drop table if exists pro_sandbox.ca_VarInfobyCase;
-create table pro_sandbox.ca_VarInfobyCase as 
+drop table if exists pro_sandbox.ca_VarInfobyCase1;
+create table pro_sandbox.ca_VarInfobyCase1 as
 select 
 vh.case_id,
 vh.match_key,
@@ -857,14 +897,18 @@ pro_sandbox.ca_VARHistory vh
            AND vh.MaxScoringDt = cast(motr.partition_0 as date)
            AND vh.lob_table_source = 'OTR';
 
+
+
+
+
 /*  Nick Bogan, 2021-04-23: We build ca_efs_customer_current to simplify building
  * ca_collections_analytics. It's a *LOT* faster to use a max run date subquery
  * to get the run date than to use a window function over the whole table to find
  * the max run date. 
  */
 
-drop table if exists pro_sandbox.ca_efs_customer_current;
-create table pro_sandbox.ca_efs_customer_current as
+drop table if exists pro_sandbox.ca_efs_customer_current1;
+create table pro_sandbox.ca_efs_customer_current1 as
 select cast(customer_id as varchar) as cust_id,
 --  customer_ID isn't unique in EFS_customer--platform is also required--but I see
 -- no good platform to join on in the Salesforce data, so we pick the alphabetical
@@ -876,10 +920,13 @@ where run_date =
     from efs_owner_crd_rss.efs_customer c)
 group by customer_id;
 
+
+
+
 --Creates final output that weaves a lot of the above tables together
 --as Tableau cannot handle joins with data this large 
-drop table if exists pro_sandbox.ca_collections_analytics;
-create table pro_sandbox.ca_collections_analytics as
+drop table if exists pro_sandbox.ca_collections_analytics1;
+create table pro_sandbox.ca_collections_analytics1 as
 select distinct 
        a.*
       ,case when g.setid='REV' then b.begin_rev_amtpastdue_dt else b.begin_amtpastdue_dt end as begin_amtpastdue_dt
@@ -928,16 +975,17 @@ select distinct
       ,coalesce(mvarn.reasoncode2,mvaro.reasoncode2) as task_level_reasoncode2
       ,coalesce(mvarn.reasoncode3,mvaro.reasoncode3) as task_level_reasoncode3
       ,coalesce(NULLIF(ccqhd.var_q,' '),a.q_type) as task_level_var_q
+      ,null as dialer_contact_method::varchar(100)
 from pro_sandbox.ca_salesforce                 a
      left outer join
      pro_sandbox.ca_get_amt_due                   b
   on a.case_casenumber = b.case_casenumber
  and a.case_create_dt  = b.case_create_dt
       left outer join 
-      pro_sandbox.ca_Promise_Payments                 e
+      pro_sandbox.ca_Promise_Payments e
   on a.ptpid = e.ptpid
      left outer join
-     pro_sandbox.ca_sf_payments                      f
+     pro_sandbox.ca_sf_payments f
   on a.case_casenumber = f.case_casenumber
  and a.match_key       = f.match_key 
  and a.case_create_dt  = f.case_create_dt 
@@ -951,7 +999,7 @@ from pro_sandbox.ca_salesforce                 a
      pro_sandbox.ca_efs_customer_current i
   on a.match_key = i.cust_id
        left outer join
-     pro_sandbox.ca_nice_acd                         j
+     pro_sandbox.ca_nice_acd1                         j
   on a.task_cxone_contact_id   = j.nice_contact_id
  and length(a.task_cxone_contact_id)>2 
     left outer join 
@@ -965,7 +1013,7 @@ from pro_sandbox.ca_salesforce                 a
   on a.taskid = tla.taskid
  AND a.task_create_dttm = tla.task_create_dttm
  AND a.col_id = tla.hcolid
-    left join pro_sandbox.ca_otr_platform op
+    left join pro_sandbox.ca_otr_platform1 op
   on a.match_key = op.ar_number
      left outer join pro_sandbox.ca_VarInfobyCase vic
   on a.case_id = vic.case_id 
@@ -981,16 +1029,16 @@ from pro_sandbox.ca_salesforce                 a
 --     AND ccqhd.intraday_row_number = 1
 where a.lob in ('NAF','OTR');
 
---Alters the final dataset to add a column to store how the case
---was called by the NICE system.
-ALTER TABLE pro_sandbox.ca_collections_analytics
-    add dialer_contact_method varchar(100) null;
-update pro_sandbox.ca_collections_analytics
+
+
+
+
+
+
+update pro_sandbox.ca_collections_analytics1
 set dialer_contact_method = ds.dialer_contact_method 
-from 
-pro_sandbox.ca_collections_analytics ca
-    inner join (SELECT 
-                ca.contact_id,
+from pro_sandbox.ca_collections_analytics1 ca
+inner join (SELECT ca.contact_id,
                 case 
                     when s.outbound_strategy = 'Personal Connection' then 'Predictive'
                     when s.outbound_strategy = 'Manual' then 'Preview'
@@ -1000,17 +1048,24 @@ pro_sandbox.ca_collections_analytics ca
                 max(ca.contact_start) as Max_Contactdate,
                 count(*) as Ttl_Records
                 from nice_acd_rss.completed_contact ca  
-                    left outer join nice_acd_rss.skill s
-                        on ca.skill_id = s.skill_id 
-                group by 
-                ca.contact_id ,cast(ca.contact_start as date),s.outbound_strategy ) ds
-        on ca.task_cxone_contact_id = ds.contact_id;
+                left outer join nice_acd_rss.skill s
+                on ca.skill_id = s.skill_id 
+                group by ca.contact_id ,cast(ca.contact_start as date),s.outbound_strategy
+) ds
+on ca.task_cxone_contact_id = ds.contact_id;
+
+
 --Updates the final dataset to clear out any promise to pay that was recorded by the agent NICE Integration.
-update pro_sandbox.ca_collections_analytics
-    set task_owner_agent_name = coalesce(case when task_owner_agent_name = 'NICE Integration' AND promise_kept = 1
-                                              then NULL else task_owner_agent_name end,ptp_agent);
-drop table if exists pro_sandbox.ca_ptp_all;
-create table pro_sandbox.ca_ptp_all as 
+update pro_sandbox.ca_collections_analytics1
+set task_owner_agent_name = coalesce(case when task_owner_agent_name = 'NICE Integration' AND promise_kept = 1
+then NULL else task_owner_agent_name end,ptp_agent);
+
+
+
+
+
+drop table if exists pro_sandbox.ca_ptp_all1;
+create table pro_sandbox.ca_ptp_all1 as
 select 
 sptp.id as ptpid,
 sa.id as acctid,
@@ -1035,7 +1090,8 @@ min(sptp.payment_plan_total__c) as min_ptp_plan_ttl,
 sum(case when cast(coalesce(spp_all.payment_date__c,sptp.first_payment_date__c) as date) 
     <= cast(GETDATE() as date) then coalesce(spp_all.payment_amount__c,sptp.payment_plan_total__c,sptp.payment_amount__c,0) end) as ptp_last_amt,
 sup.name as ptp_agent, 
-'                                                   ' as promise_kept
+'                                                   ' as promise_kept,
+null::float as ttl_paid_to_promise -- new field added from latest alter table 2022-11-28
 from 
 salesforce_rss.sf_promise_to_pay sptp 
 	left outer join salesforce_rss.sf_payment_plan spp_all
@@ -1048,7 +1104,7 @@ salesforce_rss.sf_promise_to_pay sptp
 		on sc.case__c = sptpc.id 
 	left outer join salesforce_rss.sf_account sa 
 		on sc.account__c = sa.id
-	left outer join pro_sandbox.ca_collection_cases cc
+	left outer join pro_sandbox.ca_collection_cases1 cc
 		on sptpc.id = cc.case_id 
 group by 
 sptp.id,
@@ -1060,22 +1116,26 @@ cc.lob,
 coalesce(NULLIF(sa.wex_account__c,''),NULLIF(sc.ar_number__c,'')),
 sptp.collections__c,
 sup.name;
-alter table pro_sandbox.ca_ptp_all
-	add column ttl_paid_to_promise float null;
-drop table if exists pro_sandbox.ca_ptp_payments_all;
-create table pro_sandbox.ca_ptp_payments_all as 
+
+
+
+
+drop table if exists pro_sandbox.ca_ptp_payments_al1l;
+create table pro_sandbox.ca_ptp_payments_all1 as 
 select a.match_key
       ,a.ptpid
       ,max(b.payment_dt) as last_payment_dt_to_prmise
       ,sum(b.payment_amt)                   as ttl_paid_to_promise
       ,count(b.match_key)                   as nbr_of_pymts_to_promise 
-      from pro_sandbox.ca_ptp_all a
+      from pro_sandbox.ca_ptp_all1 a
 	        left outer join 
-	        pro_sandbox.ca_payments   b
+	        pro_sandbox.ca_payments1   b
 		  on a.match_key = b.match_key
 		 and cast(b.payment_dt as date) BETWEEN cast(a.ptp_create_dt as date) AND cast(a.ptp_end_payment_due_dt as date)
 group by a.match_key, a.ptpid;
-update pro_sandbox.ca_ptp_all 
+
+
+update pro_sandbox.ca_ptp_all1 
 set promise_kept = case
 						when ptp_all.ptp_end_payment_due_dt <= cast(getdate() as date) AND coalesce(ptp_pay_all.ttl_paid_to_promise,0) >= coalesce(ptp_all.ptp_last_amt,ptp_all.ptp_plan_ttl,ptp_all.ptp_installment_amt_ttl,0) then 'Yes - Final'
 						when ptp_all.ptp_end_payment_due_dt <= cast(getdate() as date) AND coalesce(ptp_pay_all.ttl_paid_to_promise,0) < coalesce(ptp_all.ptp_last_amt,ptp_all.ptp_plan_ttl,ptp_all.ptp_installment_amt_ttl,0) then 'No - Final'
@@ -1085,10 +1145,9 @@ set promise_kept = case
 	ttl_paid_to_promise = coalesce(round(ptp_pay_all.ttl_paid_to_promise,2),0)
 from 
 pro_sandbox.ca_ptp_all ptp_all 
-	inner join pro_sandbox.ca_ptp_payments_all ptp_pay_all
-		on ptp_all.ptpid = ptp_pay_all.ptpid;
--- End 1.DP-CollectionsAnalytics\Individual_Scripts\Create_Collection_Analytics_Datasets_Prod.sql
--- Start 2.DP-CollectionsAnalytics\Individual_Scripts\Segment Analysis Query_PROD
+inner join pro_sandbox.ca_ptp_payments_all ptp_pay_all
+on ptp_all.ptpid = ptp_pay_all.ptpid;
+
 
 v_section := 20; 
 call elt.logging(v_jobname, v_section);
@@ -1106,108 +1165,71 @@ call elt.logging(v_jobname, v_section);
 ---Dependent on Collections Analytics master dataset------------------------------------
 DROP TABLE IF EXISTS pro_sandbox.ca_segments_dashboard;
 create table pro_sandbox.ca_segments_dashboard as (
-with 
-dollar_presented as (
-select 
-q_type,
-lob,
-naf_setid,
-otr_platform_sub,
-case_created_dttm::date,
-count(case_casenumber)total_cases,
-sum(dollar_presented)dollar_presented
-from (
-select 
-case_casenumber,
-case_created_dttm::date,
-q_type,
-lob,
-naf_setid,
-otr_platform_sub,
-max(amtpastdue_amt)dollar_presented
-from pro_sandbox.ca_collections_analytics
---where setid='REV' and q_type='MVAR' and lob='NAF'
-group by 
-case_casenumber,
-case_created_dttm::date,
-q_type,
-lob,
-naf_setid,
-otr_platform_sub)
-group by 
-q_type,
-case_created_dttm::date,
-lob,
-naf_setid,
-otr_platform_sub),
-dollar_collected as (
-select 
-q_type,
-lob,
-naf_setid,
-otr_platform_sub,
-case_created_dttm::date,
-count(case_casenumber)total_closed,
-sum(dollar_collected)dollar_collected
-from (
-select 
-case_casenumber,
-case_created_dttm::date,
-q_type,
-lob,
-naf_setid,
-otr_platform_sub,
-max(amtpastdue_amt) dollar_collected
-from pro_sandbox.ca_collections_analytics 
-where case_secondary_reason='Customer Current' and case_status='Closed'--and setid='REV' and q_type='MVAR' and lob='NAF'
-group by 
-case_casenumber,
-case_created_dttm::date,
-q_type,
-lob,
-naf_setid,
-otr_platform_sub)
-group by 
-q_type,
-lob,
-naf_setid,
-otr_platform_sub,
-case_created_dttm::date)
-select 
-a.*,
-b.total_closed,
-b.dollar_collected
-from 
-dollar_presented a 
-left join 
-dollar_collected b
-on 
-a.q_type=b.q_type
-and 
-a.lob=b.lob
-and 
-a.naf_setid=b.naf_setid
-and 
-a.case_created_dttm::date=b.case_created_dttm::date
-where a.lob='NAF'
-union all
-select 
-a.*,
-b.total_closed,
-b.dollar_collected
-from
-dollar_presented a 
-left join 
-dollar_collected b
-on 
-a.q_type=b.q_type
-and 
-a.lob=b.lob
-and 
-a.case_created_dttm::date=b.case_created_dttm::date
-and 
-a.otr_platform_sub=b.otr_platform_sub
-where a.lob in ('OTR')
+	with dollar_presented as (
+		select 
+			q_type,
+			lob,
+			naf_setid,
+			otr_platform_sub,
+			case_created_dttm::date,
+			count(case_casenumber)total_cases,
+			sum(dollar_presented)dollar_presented
+		from (
+			select 
+				case_casenumber,
+				case_created_dttm::date,
+				q_type,
+				lob,
+				naf_setid,
+				otr_platform_sub,
+				max(amtpastdue_amt)dollar_presented
+			from pro_sandbox.ca_collections_analytics
+			--where setid='REV' and q_type='MVAR' and lob='NAF'
+			group by case_casenumber, case_created_dttm::date, q_type, lob, naf_setid, otr_platform_sub
+		)
+		group by q_type, case_created_dttm::date, lob,	naf_setid,	otr_platform_sub
+	),
+	dollar_collected as (
+		select 
+			q_type,
+			lob,
+			naf_setid,
+			otr_platform_sub,
+			case_created_dttm::date,
+			count(case_casenumber)total_closed,
+			sum(dollar_collected)dollar_collected
+		from (
+			select 
+				case_casenumber,
+				case_created_dttm::date,
+				q_type,
+				lob,
+				naf_setid,
+				otr_platform_sub,
+				max(amtpastdue_amt) dollar_collected
+			from pro_sandbox.ca_collections_analytics 
+			where case_secondary_reason='Customer Current' and case_status='Closed'--and setid='REV' and q_type='MVAR' and lob='NAF'
+			group by case_casenumber, case_created_dttm::date, q_type, lob,	naf_setid,	otr_platform_sub
+		)
+		group by q_type,	lob,naf_setid, otr_platform_sub, case_created_dttm::date
+	)
+	select 
+		a.*,
+		b.total_closed,
+		b.dollar_collected
+	from dollar_presented a 
+	left join dollar_collected b
+	on a.q_type=b.q_type and a.lob=b.lob and a.naf_setid=b.naf_setid and a.case_created_dttm::date=b.case_created_dttm::date
+	where a.lob='NAF'
+	union all
+	select 
+		a.*,
+		b.total_closed,
+		b.dollar_collected
+	from dollar_presented a 
+	left join dollar_collected b
+	on a.q_type=b.q_type and a.lob=b.lob and a.case_created_dttm::date=b.case_created_dttm::date and a.otr_platform_sub=b.otr_platform_sub
+	where a.lob in ('OTR')
 );
 --End 2.DP-CollectionsAnalytics\Individual_Scripts\Segment Analysis Query_PROD.sql
 --Start 3.DP-CollectionsAnalytics\Individual_Scripts\Roll Rate_PROD.sql
@@ -1227,8 +1249,8 @@ call elt.logging(v_jobname, v_section);
 /**** Change Log ****/
 /* 2021.02.23: Update join issues that are causing data not to be returned in query (date issue) */
 /*             line +48                                                                          */
-DROP TABLE IF EXISTS pro_sandbox.ca_rollrate_trend;
-create table pro_sandbox.ca_rollrate_trend as (
+DROP TABLE IF EXISTS pro_sandbox.ca_rollrate_trend1;
+create table pro_sandbox.ca_rollrate_trend1 as (
 with getdata as (
 select a.cust_id
       ,a.platform
@@ -1286,8 +1308,13 @@ order by a.platform, a.business_date, a.dpd_bucket, b.business_date, b.dpd_bucke
 --End  3.DP-CollectionsAnalytics\Individual_Scripts\Roll Rate_PROD.sql
 --Start 4.DP-CollectionsAnalytics\Individual_Scripts\Queue Migration_PROD.sql
 
+
 v_section := 40; 
 call elt.logging(v_jobname, v_section);
+
+
+
+
 
 --Created 2020.01.11
 --Created By: MGanesh;
@@ -1300,8 +1327,8 @@ call elt.logging(v_jobname, v_section);
 --Schedule: Daily, 0800
 --Run Time: 5-10 minutes
 ---Dependent on Collections Analytics master dataset------------------------------------
-DROP TABLE IF EXISTS pro_sandbox.ca_queue_migration;
-create table pro_sandbox.ca_queue_migration as (
+DROP TABLE IF EXISTS pro_sandbox.ca_queue_migration1;
+create table pro_sandbox.ca_queue_migration1 as (
 with fulldata as (
 select distinct
       b.casenumber,
@@ -1371,6 +1398,10 @@ order by a.casenumber, a.from_queue_date);
 v_section := 50; 
 call elt.logging(v_jobname, v_section);
 
+
+
+
+
 --Created 2020.01.11
 --Created By: MGanesh;
 --Audited By: NMorrill
@@ -1388,11 +1419,8 @@ call elt.logging(v_jobname, v_section);
 --------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------------------------
-drop table if exists pro_sandbox.ca_collections_analytics_curerate_temp;
-drop table if exists pro_sandbox.ca_collections_analytics_curerate;
-
-
-create table pro_sandbox.ca_collections_analytics_curerate_temp as (
+drop table if exists pro_sandbox.ca_collections_analytics_curerate_temp1;
+create table pro_sandbox.ca_collections_analytics_curerate_temp1 as (
 select 'NAF' as lob
       ,month_year_abbr
       ,frd_bk
@@ -1611,7 +1639,11 @@ select 'OTR' as lob
 );
 
 
-create table pro_sandbox.ca_collections_analytics_curerate as (
+
+
+
+drop table if exists pro_sandbox.ca_collections_analytics_curerate1;
+create table pro_sandbox.ca_collections_analytics_curerate1 as (
 with sf_driver as (
 select nvl(a.id, b.caseid) as id
       ,a.accountid         as accountid 
@@ -1673,7 +1705,7 @@ select a.*
             when b.sa=1   then 'STRATEGIC ACCOUNTS'
             when b.os=1   then 'OUTSOURCED'            
         end as q_type                
- from pro_sandbox.ca_collections_analytics_curerate_temp  a
+ from pro_sandbox.ca_collections_analytics_curerate_temp1  a
       left outer join
       queue_priority                                   b
    on a.cust_id = b.match_key
@@ -1686,9 +1718,11 @@ select *
 --End 5.DP-CollectionsAnalytics\Individual_Scripts\Cure Rates_PROD.sql
 --Start 6.DP-CollectionsAnalytics\Individual_Scripts\Collections- New Data Model_PROD.sql
 
+
+
+
 v_section := 60; 
 call elt.logging(v_jobname, v_section);
-
 --Created 2020.01.11
 --Created By: MGanesh;
 --Audited By: NMorrill
@@ -1701,8 +1735,8 @@ call elt.logging(v_jobname, v_section);
 --Schedule: Daily, 0800
 --Run Time: 5-10 minutes
 ---Dependent on Collections Analytics master dataset------------------------------------
-DROP TABLE IF EXISTS pro_sandbox.ca_collections_analytics_audit_data_model;
-create table pro_sandbox.ca_collections_analytics_audit_data_model as (
+DROP TABLE IF EXISTS pro_sandbox.ca_collections_analytics_audit_data_model1;
+create table pro_sandbox.ca_collections_analytics_audit_data_model1 as (
 ----Driver CTE gets all possible date values by using task and case created date)
 with driver as (
 select
@@ -1804,7 +1838,7 @@ case when case_closed_dttm is not null
          then cast(case_closed_dttm as date)
          else '9999-12-31' end as case_closed_date,
          case_secondary_reason,case_brought_current
-from pro_sandbox.ca_collections_analytics
+from pro_sandbox.ca_collections_analytics1
 group by case_casenumber,case_created_dttm,
 case when case_closed_dttm is not null then 
           cast(case_closed_dttm as date)
@@ -1856,8 +1890,11 @@ d.case_brought_current);
 --End 6.DP-CollectionsAnalytics\Individual_Scripts\Collections- New Data Model_PROD.sql
 --Start 7.DP-COllectionsAnalytics\Individual_Scripts\ACR_ Daily count_PROD.sql
 
-v_section := 70; 
-call elt.logging(v_jobname, v_section);
+
+/* uncomment later 
+ * v_section := 70; 
+ * call elt.logging(v_jobname, v_section);
+*/
 
 --Created 2020.01.11
 --Created By: MGanesh;
@@ -1870,8 +1907,8 @@ call elt.logging(v_jobname, v_section);
 --Schedule: Daily, 0800
 --Run Time: 5-10 minutes
 --Dependent on Collections- New Data Model------------------------
-DROP TABLE IF EXISTS pro_sandbox.ca_acr_daily_callcount;
-create table pro_sandbox.ca_acr_daily_callcount as (
+DROP TABLE IF EXISTS pro_sandbox.ca_acr_daily_callcount1;
+create table pro_sandbox.ca_acr_daily_callcount1 as (
 with agent_call_callcount as (
 select
 a.task_owner_agent_name agent_name,
@@ -1906,6 +1943,8 @@ agent_name,
 lob,
 task_create_date)
 select * from primary_skill_assignment);
+
+
 --End 7.DP-COllectionsAnalytics\Individual_Scripts\ACR_ Daily count_PROD.sql
 --Start 8.DP-COllectionsAnalytics\Individual_Scripts\ACR_ dataset_PROD.sql
 
@@ -1916,59 +1955,153 @@ call elt.logging(v_jobname, v_section);
 --Created By: MGanesh;
 --Audited By: NMorrill
 --Audited On: 2020.01.11
---Purpose: Creates ACR dataset that is used for reporting and in collections analytics visualizations
+--Purpose: The objective of the new data model is to provide day to day historical information and activities about a case. 
+--         It can effectively track the queue migrations, thus providing a complete history of a case on daily level.
 --Dependant on:
 --  Repo:DP_CollectionAnalytics\Scheduled_Scripts\
---      Script: ACR_ Daily count_PROD.sql
+--      Script: Create_Collection_Analytics_Dataset_PROD.sql
 --Schedule: Daily, 0800
 --Run Time: 5-10 minutes
----Dependent on acr_daily_callcount_new-----------------
-DROP TABLE IF EXISTS pro_sandbox.ca_acr_dataset;
-create TABLE pro_sandbox.ca_acr_dataset as (
-with agentcount as (
+---Dependent on Collections Analytics master dataset------------------------------------
+DROP TABLE IF EXISTS pro_sandbox.ca_collections_analytics_audit_data_model1;
+create table pro_sandbox.ca_collections_analytics_audit_data_model1 as (
+----Driver CTE gets all possible date values by using task and case created date)
+with driver as (
+select
+distinct 
+cast(DATE_TRUNC('day',a.task_create_dttm) as date) date_driver 
+from pro_sandbox.ca_collections_analytics a 
+union 
 select 
-task_create_date,
-primary_skill,
-lob,
-count(distinct agent_name) agent_count
-from 
-pro_sandbox.ca_acr_daily_callcount
-where 
-primary_skill is not null
-group by 
-task_create_date,
-lob,
-primary_skill
+distinct 
+cast(DATE_TRUNC('day',b.case_created_dttm) as date) date_driver 
+from pro_sandbox.ca_collections_analytics b 
 ),
-casescount as (
+-----qtype cte tracks queue migration for every case found in dev_final12. It appends a new row for every queue change.
+qtype as (
+select
+b.casenumber,
+b.owner_name__c as current_caseowner_name,
+ nvl(b.id, a.caseid) as id,
+ a.createddate as fromdate_ts_utc, ------createddate is pulled as is inorder for the dense rank to function properly by taking the orginal timestamp into consideration
+ b.closeddate,----pulled in for validation, is not part of the final query
+ cast(b.closeddate as date),----pulled in for validation, is not part of the final query
+convert_timezone('UTC','EST',left(regexp_replace(a.createddate,'T',' '),19)::timestamp) as fromdate_ts,
+ trunc(convert_timezone('UTC','EST',left(regexp_replace(a.createddate,'T',' '),19)::timestamp)) as fromdate,----Fromdate will act as pivot to make appropriate date joins with other tables
+    nvl(cast(lead(a.createddate,1) over (partition by casenumber order by a.createddate)as date)-1 ,
+    case when b.closeddate > ' '
+         then trunc(convert_timezone('UTC','EST',left(regexp_replace(b.closeddate,'T',' '),19)::timestamp))
+         when cast(NULLIF(b.closeddate,' ') as date)=cast(a.createddate as date) --- This is to satisfy the usecase where the case jumps multiple queue within the same day and closes on the same day as it was created. This logic ensures that, under such circumstances the to_date is same as the created date and not one day before so that these cases don't get omitted from the dataset.
+         then cast(a.createddate as date)
+         else '9999-12-31' end) todate,--- to_date looks up the next queue change and takes one day before to indicate how long the case was in a particular queue before migration. It is also an integral part of the joins to other tables.
+    case
+        when a.newvalue like 'Collections%' then a.newvalue
+        else a.oldvalue end as value
+      ,case when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%NAF%' then 'NAF'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%OTR%' then 'OTR'
+        end as lob
+      ,case when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%HVAR%'       then 'HVAR'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%MVAR%'       then 'MVAR'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%LVAR%'       then 'LVAR'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%Self-cure%'  then 'SELFCURE'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%Returned Payment%'  then 'RETURN PAYMENT'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%Outsourced%'  then 'OUTSOURCED'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%Late Stage%'  then 'LATE STAGE'
+            when (case when a.newvalue like 'Collections%' then a.newvalue else a.oldvalue end) like '%Strategic Accounts%'  then 'STRATEGIC ACCOUNTS'
+        else 'OTHER(DEFAULT, SOLD ACCOUNTS,FOLLOW UP)' end as var_q,
+                dense_rank() over(partition by b.casenumber
+            order by a.createddate) as row_order
+            from
+                salesforce_rss.sf_case_history a
+            left outer join salesforce_dl_rss.case b on
+                a.caseid = b.id
+            where
+            --or (a.oldvalue like 'Collections%' or a.newvalue like 'Collections%')
+             --casenumber='04506830' and
+                b.casenumber in (select distinct case_casenumber from pro_sandbox.ca_collections_analytics) -- to show the case migration history for all the cases in dev_final12 dataset
+                and
+                a.field = 'Owner'---Looks up the created date and other meta data only when the field is owner so that we are capturing the information only when then there is a queue migration.
+                and trunc(a.createddate)>= '2020-01-01'
+                and (a.oldvalue = 'Credit Monitoring'
+                or substring(a.oldvalue, 1, 10)= 'Collection'
+                or a.newvalue = 'Credit Monitoring'
+                or substring(a.newvalue, 1, 10)= 'Collection'))
 select 
-date_driver,
-var_q,
-lob,
-count(distinct casenumber) nbr_open_cases
-from 
-pro_sandbox.ca_collections_analytics_audit_data_model
-group by 
-date_driver,
-var_q,
-lob
-)
-SELECT
 a.date_driver,
-a.var_q,
-a.lob,
-a.nbr_open_cases,
-b.agent_count
+b.casenumber,
+b.current_caseowner_name,
+b.id,
+b.fromdate,
+ b.todate,
+b.var_q,
+b.lob,
+c.task_create_dttm,
+c.task_ae_activity_type,
+c.task_activity_type,
+c.task_owner_agent_name,
+c.task_cxone_contact_id,
+max(e.q_type)most_recent_queue,---pulling in the recent queue as a couple of views that project case level info require it. Using the var_q coming from the qtype cte would result in duplication for view dealing with case counts, $collected,$presented as they can change multiple queues overtime.
+c.penetration_calls_made,---used to identify legit calls
+c.task_disposition_name,
+c.task_calldisposition,
+d.case_secondary_reason,
+d.case_brought_current,
+max(f.created_date)created_date,
+max(e.amtpastdue_amt)amtpastdue_amt-- pulling it to support one of timeline view viz pertaining to case and $collected, $presented.
 from 
-casescount a 
-left join 
-agentcount b
-on 
-a.date_driver=b.task_create_date
-and 
-a.var_q=b.primary_skill
-and
-a.lob=b.lob);
+driver a 
+left join qtype b
+on a.date_driver >= b.fromdate and a.date_driver <=b.todate ------ This join ensures that we are capturing the historic information on a daily basis for every case.
+left join pro_sandbox.ca_collections_analytics1 c
+on b.casenumber=c.case_casenumber and cast(DATE_TRUNC('day',task_create_dttm) as date)=date_driver
+left join (
+	select case_casenumber,
+		case
+			when case_closed_dttm is not null then cast(case_closed_dttm as date)
+         	else '9999-12-31'
+         end as case_closed_date,
+         case_secondary_reason,case_brought_current
+	from pro_sandbox.ca_collections_analytics
+	group by case_casenumber,case_created_dttm,
+	case
+		when case_closed_dttm is not null then cast(case_closed_dttm as date)
+    	else '9999-12-31'
+    end,
+    case_secondary_reason,
+    case_brought_current
+) d 
+on b.casenumber=d.case_casenumber and a.date_driver=d.case_closed_date
+left join (
+	select
+		case_casenumber,
+		max(amtpastdue_amt)amtpastdue_amt,
+		q_type
+	from pro_sandbox.ca_collections_analytics1
+	group by case_casenumber,q_type) e 
+	on b.casenumber=e.case_casenumber
+	left join (
+		select casenumber,min(fromdate)created_date from qtype group by casenumber)f
+	on b.casenumber=f.casenumber and a.date_driver=f.created_date
+	--where 
+	--fromdate='2020-07-08' and 
+	--casenumber is not null
+	group by a.date_driver,b.casenumber,b.current_caseowner_name,b.id,b.var_q, b.fromdate, b.todate,b.lob,c.task_create_dttm,c.task_ae_activity_type,c.task_activity_type,c.task_owner_agent_name,c.task_cxone_contact_id,c.penetration_calls_made,c.task_disposition_name,c.task_calldisposition,d.case_secondary_reason,d.case_brought_current
+);
+
+
+
+--End 6.DP-CollectionsAnalytics\Individual_Scripts\Collections- New Data Model_PROD.sql
+--Start 7.DP-COllectionsAnalytics\Individual_Scripts\ACR_ Daily count_PROD.sql
+
+
+v_section := 70; 
+call elt.logging(v_jobname, v_section);
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+--add grants
+
+
+
 --End 8.DP-COllectionsAnalytics\Individual_Scripts\ACR_ dataset_PROD.sql
 
 ---------------------------------------------------------------------------
