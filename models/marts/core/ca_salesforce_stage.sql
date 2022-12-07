@@ -25,14 +25,18 @@ order by uniquerowid;
 -- Where aLTER tables must GO?
 -- the scriupt to create table must be up to date to any DMLs 
 --Flags the appropriate level to attach a promise to pay record
-update pro_sandbox.ca_salesforce_stage1
+{{ config(
+    post_hook=["
+update pro_sandbox.ca_salesforce_stage
 set ptp_level = 1
 from 
-pro_sandbox.ca_salesforce_stage1 cssd
+pro_sandbox.ca_salesforce_stage cssd
     inner join
     (select case_id, col_id,
         max(case when calldisp_ptpflg = 1 then UniqueRowID else NULL end) as MaxUniqueRowID1,
         max(uniquerowid) as maxUniqueRowID
-    from pro_sandbox.ca_salesforce_stage1
+    from pro_sandbox.ca_salesforce_stage
     group by case_id, col_id) b 
         on cssd.UniqueRowID = coalesce(b.MaxUniqueRowID1,b.MaxUniqueRowID);
+        "]
+)}}

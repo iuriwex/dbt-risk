@@ -1,6 +1,10 @@
 version: 2
 models:
-  - name: stg_eltool__ca_collection_queu_hist
+  - name: stg_eltool__ca_collection_queue_hist
+    columns:
+      - name: id
+        tests:
+          - not_null
   # TODO: listing all columns
           
   - name: stg_eltool__ca_collection_cases
@@ -13,7 +17,10 @@ models:
       - name: taskid
         tests:
           - not_null
-  - name: stg_eltool__ca_collection_analytics
+  - name: stg_eltool__ca_collections_analytics
+    columns:
+      - name: naf_setid
+        
   - name: stg_eltool__ca_driver
     columns:
       - name: id

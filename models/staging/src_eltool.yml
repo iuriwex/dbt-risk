@@ -14,7 +14,13 @@ sources:
           - name: max_utc_hcol_createdttm
           - name: max_et_hcol_createdttm
           - name: nbr_of_records
-      - name: ca_collection_queu_hist
+
+      - name: ca_collection_queue_hist
+        columns:
+          - name: id
+            tests:
+              - not_null
+              
       - name: ca_collection_cases
         columns:
           - name: case_id
@@ -25,7 +31,9 @@ sources:
           - name: id
             tests:
               - not_null
-      - name: ca_collection_analytics
+      - name: ca_collections_analytics
+        columns:
+          - name: naf_setid
       - name: ca_driver
         columns:
           - name: id

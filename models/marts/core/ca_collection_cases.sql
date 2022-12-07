@@ -1,6 +1,6 @@
 with pro_sandbox.ca_collection_cases as (
-    select * 
-    from {{ ref('stg_eltool__ca_collection_cases') }}
+    SELECT * 
+    FROM {{ ref('stg_eltool__ca_collection_cases') }}
 )
 select DISTINCT
     c.casenumber case_casenumber
@@ -62,11 +62,11 @@ select DISTINCT
     ,a.pfs_rep__c as pfs_rep
     ,a.direct_debit__c as direct_debit
     ,0 as task_level
-from pro_sandbox.ca_driver1 as driver
-inner join salesforce_dl_rss.case c
-    on c.id = driver.id
-inner join salesforce_dl_rss.account a
-    on c.accountid  = a.id 
+FROM pro_sandbox.ca_driver AS driver
+INNER JOIN salesforce_dl_rss.case c
+ON c.id = driver.id
+INNER JOIN salesforce_dl_rss.account a
+ON c.accountid  = a.id 
 left outer join salesforce_rss.sf_collections col
     on c.id        = col.case__c 
    AND c.accountid = col.account__c
@@ -76,12 +76,23 @@ left outer join salesforce_rss.sf_collections col
 
  --
 -- WHERE SHOULD I PUT THIS QUERY UPDATE? 
-update pro_sandbox.ca_collection_cases
-set task_level = 1 
-from 
-pro_sandbox.ca_collection_cases1 cccd
-    inner join (select case_casenumber, case_id, min(col_id) as mincolid
-    from pro_sandbox.ca_collection_cases1
-    group by case_casenumber,case_id)  coltask
-        on cccd.col_id = coltask.mincolid
-      AND cccd.case_id = coltask.case_id;
+-- 1. Approach post hook
+-- 2. second stage layer  
+----
+--
+
+
+-- 1. Approach post hook
+{{ config(
+    post_hook=[
+        "UPDATE pro_sandbox.ca_collection_cases
+        SET task_level = 1 
+        FROM pro_sandbox.ca_collection_cases cccd
+        INNER JOIN (
+            SELECT case_casenumber, case_id, min(col_id) AS mincolid
+            FROM pro_sandbox.ca_collection_cases
+            GROUP BY case_casenumber,case_id)  coltask
+        ON cccd.col_id = coltask.mincolid AND cccd.case_id = coltask.case_id"
+    ]
+) }}
+

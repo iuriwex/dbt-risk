@@ -1,4 +1,4 @@
-with ca_collection_queue_hist as (
+with pro_sandbox.ca_collection_queue_hist as (
     SELECT * FROM {{ ('stg_eltool__ca_collection_queue_hist')}}
 )
 select
@@ -67,4 +67,4 @@ and trunc(a.createddate)>= '2020-01-01'
 and (a.oldvalue = 'Credit Monitoring'
 or substring(a.oldvalue, 1, 10)= 'Collection'
 or a.newvalue = 'Credit Monitoring'
-or substring(a.newvalue, 1, 10)= 'Collection');
+or substring(a.newvalue, 1, 10)= 'Collection')

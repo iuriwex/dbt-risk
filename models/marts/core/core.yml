@@ -1,8 +1,13 @@
 version: 2
 models:
-  - name: ca_collection_queu_hist
+  - name: ca_collection_queue_hist
+    columns:
+      - name: id
+        tests:
+          - not_null
   - name: ca_collection_tasks
-  - name: ca_collection_analytics
+  - name: ca_collections_analytics
+  - name: ca_collection_cases
   - name: ca_driver
   - name: ca_efs_customer_current
   - name: ca_get_amt_due

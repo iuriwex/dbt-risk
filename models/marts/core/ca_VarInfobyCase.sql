@@ -2,7 +2,7 @@
 --of the process.
 with pro_sandbox.ca_VarInfobyCase as (
     SELECT *
-    FROM {{('stg_eltool__ca_VarInfoCase')}}
+    FROM {{('stg_eltool__ca_VarInfonbyCase')}}
 )
 select 
 vh.case_id,

@@ -26,8 +26,8 @@ from -- case_task
     (select 'Case Task' as Task_Assigned_To,
         cccd.*,
         cctd.*
-    from pro_sandbox.ca_collection_cases1 cccd
-    inner join pro_sandbox.ca_collection_tasks1 cctd
+    from pro_sandbox.ca_collection_cases cccd
+    inner join pro_sandbox.ca_collection_tasks cctd
         on cccd.case_id = cctd.taskwhatid
        AND cccd.task_level = 1
     union all
@@ -35,7 +35,7 @@ from -- case_task
         cccd.*,
         cctd.*
     from pro_sandbox.ca_collection_cases1 cccd
-    inner join pro_sandbox.ca_collection_tasks1 cctd
+    inner join pro_sandbox.ca_collection_tasks cctd
         on cccd.col_id = cctd.taskwhatid
        AND cccd.task_level = 1
     union all
@@ -43,12 +43,12 @@ from -- case_task
         cccd.*,
         cctd.*
     from pro_sandbox.ca_collection_cases1 cccd
-    left outer join pro_sandbox.ca_collection_tasks1 cctd
+    left outer join pro_sandbox.ca_collection_tasks cctd
         on cccd.case_id = cctd.taskwhatid
        AND cccd.task_level = 1
-    left outer join pro_sandbox.ca_collection_tasks1 cctd_col
+    left outer join pro_sandbox.ca_collection_tasks cctd_col
         on cccd.col_id = cctd_col.taskwhatid
        AND cccd.task_level = 1
     where cctd.taskwhatid is null
         and cctd_col.taskwhatid is null
-    ) case_task;
+    ) case_task

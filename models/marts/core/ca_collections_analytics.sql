@@ -2,7 +2,7 @@
 --as Tableau cannot handle joins with data this large 
 with pro_sandbox.ca_collections_analytics as (
     SELECT *
-    FROM {{('stg_eltool_ca_collections_analitycs')}}
+    FROM {{('stg_eltool__ca_collections_analitycs')}}
 )
 select distinct 
        a.*
@@ -124,11 +124,12 @@ where a.lob in ('NAF','OTR');
 
 
 --TODO 
-update pro_sandbox.ca_collections_analytics
-set dialer_contact_method = ds.dialer_contact_method 
-from 
-pro_sandbox.ca_collections_analytics1 ca
-    inner join (SELECT 
+{{ config(
+   podt_hook=["UPDATE pro_sandbox.ca_collections_analytics
+               set dialer_contact_method = ds.dialer_contact_method 
+               from 
+               pro_sandbox.ca_collections_analytics ca
+               inner join (SELECT 
                 ca.contact_id,
                 case 
                     when s.outbound_strategy = 'Personal Connection' then 'Predictive'
@@ -143,13 +144,18 @@ pro_sandbox.ca_collections_analytics1 ca
                         on ca.skill_id = s.skill_id 
                 group by 
                 ca.contact_id ,cast(ca.contact_start as date),s.outbound_strategy ) ds
-        on ca.task_cxone_contact_id = ds.contact_id;
+        on ca.task_cxone_contact_id = ds.contact_id"]
+)}}
 
 
 
 
         
 --Updates the final dataset to clear out any promise to pay that was recorded by the agent NICE Integration.
-update pro_sandbox.ca_collections_analytics
-    set task_owner_agent_name = coalesce(case when task_owner_agent_name = 'NICE Integration' AND promise_kept = 1
-                                              then NULL else task_owner_agent_name end,ptp_agent);
+{{ config(
+   post_hook=["update pro_sandbox.ca_collections_analytics
+               set task_owner_agent_name = coalesce(
+               case when task_owner_agent_name = 'NICE Integration' AND promise_kept = 1 then NULL
+               else task_owner_agent_name end,ptp_agent);"]
+) }}
+                                             

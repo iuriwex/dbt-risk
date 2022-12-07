@@ -1,4 +1,4 @@
-with pro_sandbox.ca_ptp_payments_all1 as (
+with pro_sandbox.ca_ptp_payments_all as (
     SELECT * 
     FROM {{('stg_eltool_ca_ptp_payments_all')}}
 )
@@ -16,3 +16,18 @@ group by a.match_key, a.ptpid;
 
 
 
+-- Where should I place the UPDATE sctipr below
+
+{{ config(
+	post_hook=["update pro_sandbox.ca_ptp_all
+				set promise_kept = case
+				when ptp_all.ptp_end_payment_due_dt <= cast(getdate() as date) AND coalesce(ptp_pay_all.ttl_paid_to_promise,0) >= coalesce(ptp_all.ptp_last_amt,ptp_all.ptp_plan_ttl,ptp_all.ptp_installment_amt_ttl,0) then 'Yes - Final'
+				when ptp_all.ptp_end_payment_due_dt <= cast(getdate() as date) AND coalesce(ptp_pay_all.ttl_paid_to_promise,0) < coalesce(ptp_all.ptp_last_amt,ptp_all.ptp_plan_ttl,ptp_all.ptp_installment_amt_ttl,0) then 'No - Final'
+				when ptp_all.ptp_end_payment_due_dt > cast(getdate() as date) AND coalesce(ptp_pay_all.ttl_paid_to_promise,0) >= coalesce(ptp_all.ptp_last_amt,ptp_all.ptp_plan_ttl,ptp_all.ptp_installment_amt_ttl,0) then 'Yes - In Progress'
+				when ptp_all.ptp_end_payment_due_dt > cast(getdate() as date) AND coalesce(ptp_pay_all.ttl_paid_to_promise,0) < coalesce(ptp_all.ptp_last_amt,ptp_all.ptp_plan_ttl,ptp_all.ptp_installment_amt_ttl,0) then 'No - In Progress'
+				else 'Unknown' end,
+				ttl_paid_to_promise = coalesce(round(ptp_pay_all.ttl_paid_to_promise,2),0)
+				from pro_sandbox.ca_ptp_all ptp_all
+				inner join pro_sandbox.ca_ptp_payments_all ptp_pay_all
+				on ptp_all.ptpid = ptp_pay_all.ptpid"]
+ )}}

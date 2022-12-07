@@ -2,7 +2,7 @@
 with pro_sandbox.ca_salesforce as (
     SELECT * FROM {{('stg_eltool__ca_salesforce')}}
 )
-select 
+SELECT 
  cssd.*
 ,p.ptpid
 ,p.ptp_create_dt
@@ -16,9 +16,8 @@ select
 ,pp.payment_date__c               pymtpln_payment_date
 ,pp.payment_remitted__c           pymtpln_payment_remitted
 ,supp.name                        pymtpln_agent
-from
-pro_sandbox.ca_salesforce_stage1 cssd
-    left outer join  
+FROM pro_sandbox.ca_salesforce_stage cssd
+LEFT OUTER JOIN   
              (select collections__c,first_payment_date__c,payment_plan_total__c,payment_amount__c,payment_frequency__c,payment_type__c
              ,id as ptpid,cast(createddate as date) as ptp_create_dt,createdbyid,
              dense_rank() over(partition by collections__c order by row_created_ts desc) as first_payment_date_rankdesc          
@@ -32,4 +31,4 @@ pro_sandbox.ca_salesforce_stage1 cssd
     left outer join salesforce_rss.sf_user sup
         on p.createdbyid = sup.id
     left outer join salesforce_rss.sf_user supp
-        on pp.createdbyid  = supp.id;
+        on pp.createdbyid  = supp.id

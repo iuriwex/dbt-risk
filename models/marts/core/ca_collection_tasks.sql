@@ -41,4 +41,4 @@ inner join salesforce_rss.sf_task t
 left outer join salesforce_rss.sf_contact      c 
     on c.id = t.whoid
 left outer join salesforce_rss.sf_user         u 
-    on t.ownerid = u.id;
+    on t.ownerid = u.id
