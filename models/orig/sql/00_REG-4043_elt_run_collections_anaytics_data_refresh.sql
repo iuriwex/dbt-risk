@@ -4,7 +4,12 @@
 
 /*  Nick Bogan, 2021-04-23: When we build ca_driver, we don't bother doing a full
  * outer join of case and sf_case_history, because ca_driver is inner joined to
- * case when loading ca_collection_cases. */
+ * case when loading ca_collection_cases. 
+ 
+ * added materoialized views  iuriwex 20221223
+ */
+
+
 \i 01_REG-4043_elt_run_collections_anaytics_data_refresh_20210423.sql
 
 /* Created By: MGanesh;

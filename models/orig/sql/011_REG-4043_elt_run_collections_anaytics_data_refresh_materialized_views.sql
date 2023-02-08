@@ -75,8 +75,8 @@
 -- There is an intraday_row_number that assigns the value of 1 to the last queue that 
 -- an account was assigned to at the end of the day. The max value of this column shows
 -- the first unique value tha the account was assigned for for the day.
-drop table if exists pro_sandbox.ca_collection_queue_hist1; 
-create table pro_sandbox.ca_collection_queue_hist1 as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_collection_queue_hist1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_collection_queue_hist1 AS
 select
 b.casenumber,
 b.owner_name__c as current_caseowner_name,
@@ -143,4 +143,4 @@ and trunc(a.createddate)>= '2020-01-01'
 and (a.oldvalue = 'Credit Monitoring'
 or substring(a.oldvalue, 1, 10)= 'Collection'
 or a.newvalue = 'Credit Monitoring'
-or substring(a.newvalue, 1, 10)= 'Collection');
+or substring(a.newvalue, 1, 10)= 'Collection')

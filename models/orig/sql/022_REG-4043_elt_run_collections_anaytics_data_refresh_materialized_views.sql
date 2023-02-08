@@ -232,8 +232,8 @@ pro_sandbox.ca_salesforce_stage1 cssd
         on cssd.UniqueRowID = coalesce(b.MaxUniqueRowID1,b.MaxUniqueRowID);
 
 --Creates dataset that introduces promise to pay elements
-drop table if exists pro_sandbox.ca_salesforce1;
-create table pro_sandbox.ca_salesforce1 as
+DROP MATERIALIZED VIEW pro_sandbox.ca_salesforce1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_salesforce1 AS
 select 
  cssd.*
 ,p.ptpid
@@ -307,8 +307,8 @@ where pd.partition_0 =
     (select max(pd2.partition_0) as max_partition
     from collections_history_prod_rss.otr_past_due as pd2);
 
-drop table if exists pro_sandbox.ca_get_amt_due1;
-create table pro_sandbox.ca_get_amt_due1 as
+DROP MATERIALIZED VIEW pro_sandbox.ca_get_amt_due1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_get_amt_due1 AS
 select case_casenumber,
     case_create_dt,
     max(begin_amtpastdue_dt)        as begin_amtpastdue_dt,
@@ -421,8 +421,8 @@ from efs_owner_crd_rss.efs_payments a
  and a.payment_date >= '2020-01-01'    
 group by c.ar_number, a.payment_date;
 
-drop table if exists pro_sandbox.ca_sf_payments1;
-create table pro_sandbox.ca_sf_payments1 as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_sf_payments1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_sf_payments1 as
 select a.match_key
       ,a.case_casenumber
       ,a.case_create_dt
@@ -450,8 +450,8 @@ select DISTINCT
 
 --Creates dataset the unique promise to pay entries to payments
 --that will be used in final output 
-drop table if exists pro_sandbox.ca_promise_payments1;
-create table pro_sandbox.ca_promise_payments1 as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_promise_payments1; 
+CREATE MATERIALIZED VIEW pro_sandbox.ca_promise_payments1 AS 
 select a.match_key
       ,a.ptpid
       ,a.ptp_create_dt
@@ -465,18 +465,17 @@ select a.match_key
 group by a.match_key, a.ptpid, a.ptp_create_dt, cast(a.ptp_first_payment_dt as date);
 
 --Creates a dataset to assign OTR accounts to Fleet One or EFSLLC
-drop table if exists pro_sandbox.ca_otr_platform1;
-create table pro_sandbox.ca_otr_platform1 as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_otr_platform1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_otr_platform1 as 
 select DISTINCT 
 ar_number,
 platform,
 issuer_name
 from efs_owner_crd_rss.efs_ar_master eam ;
 
-
 --Creates a nice acd dataset to use for final dataset
-drop table if exists pro_sandbox.ca_nice_acd;
-create table pro_sandbox.ca_nice_acd as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_nice_acd1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_nice_acd1 as 
 select distinct 
           cast(a.contact_id as varchar) as nice_contact_id 
         ,NULLIF(a.acw__time,'')acw__time
@@ -600,8 +599,8 @@ update pro_sandbox.ca_sf_task_penetration_calls_stage1
 FROM pro_sandbox.ca_sf_task_penetration_calls_stage1 a;
     
 --Creates a distinct list  of calls to tie back to final dataset
-drop table if exists pro_sandbox.ca_sf_task_penetration_calls1;
-create table pro_sandbox.ca_sf_task_penetration_calls1 as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_sf_task_penetration_calls1; 
+CREATE MATERIALIZED VIEW pro_sandbox.ca_sf_task_penetration_calls1 as 
 select distinct 
 case_id
 ,case_casenumber
@@ -665,8 +664,8 @@ group by a.case_id,a.match_key;
 
 --Creates a dataset of the VAR Info by case for the output
 --of the process.
-drop table if exists pro_sandbox.ca_VarInfobyCase1;
-create table pro_sandbox.ca_VarInfobyCase1 as 
+DROP MATERIALIZED VIEW pro_sandbox.ca_VarInfobyCase1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_VarInfobyCase1 as 
 select 
 vh.case_id,
 vh.match_key,
@@ -689,14 +688,15 @@ from pro_sandbox.ca_VARHistory1 vh
            AND vh.MaxScoringDt = cast(motr.partition_0 as date)
            AND vh.lob_table_source = 'OTR';
 
+
 /*  Nick Bogan, 2021-04-23: We build ca_efs_customer_current to simplify building
  * ca_collections_analytics. It's a *LOT* faster to use a max run date subquery
  * to get the run date than to use a window function over the whole table to find
  * the max run date. 
  */
 
-drop table if exists pro_sandbox.ca_efs_customer_current1;
-create table pro_sandbox.ca_efs_customer_current1 as
+DROP MATERIALIZED VIEW pro_sandbox.ca_efs_customer_current1;
+CREATE MATERIALIZED VIEW pro_sandbox.ca_efs_customer_current1 as
 select cast(customer_id as varchar) as cust_id,
 --  customer_ID isn't unique in EFS_customer--platform is also required--but I see
 -- no good platform to join on in the Salesforce data, so we pick the alphabetical
